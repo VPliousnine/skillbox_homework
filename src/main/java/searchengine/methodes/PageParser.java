@@ -58,7 +58,7 @@ public class PageParser extends RecursiveTask<Integer> {
 
     private void stopIndexing() {
 //        Storage.decrementThreads();
-        System.out.println(pageAddress + "!".repeat(50));
+//        System.out.println(pageAddress + "!".repeat(50));
         dbc.setStatusToIndexFailed("Индексирование остановлено пользователем", siteId);
     }
 
@@ -108,7 +108,6 @@ public class PageParser extends RecursiveTask<Integer> {
         }
 
         if (pageHTML.isEmpty()) {
-            System.out.println(">".repeat(5) + " пуста " + pageAddress);
 //            Storage.decrementThreads();
             return 1;
         }
@@ -137,23 +136,23 @@ public class PageParser extends RecursiveTask<Integer> {
                     }
                 }
         );
-        System.out.println(">".repeat(15) + " " + Thread.currentThread().getName() + " - "+ pageAddress + " new addresses were added " + taskList.size());
+//        System.out.println(">".repeat(15) + " " + Thread.currentThread().getName() + " - "+ pageAddress + " new addresses were added " + taskList.size());
         int res = 0;
         for (int i = 0; i < taskList.size(); i++ ) {
             PageParser task = taskList.get(i);
             res = res + task.join();
-            System.out.println("<<<" + LocalDateTime.now() + " - " + pageAddress + " (" + linxList.get(i) + ") " + task + "<<<" + res);
+//            System.out.println("<<<" + LocalDateTime.now() + " - " + pageAddress + " (" + linxList.get(i) + ") " + task + "<<<" + res);
         }
 //        Storage.decrementThreads();
 //        System.out.println("threads " + Storage.getThreadCount() + " " + pageAddress + " "
 //                            + Thread.currentThread() + ", active is " + Thread.activeCount()
 //                );
-        if (isRoot && Storage.getIsIndexing()) {
-            System.out.println(">".repeat(10)+"!".repeat(50));
-            dbc.setStatusToIndexed(siteId);
-            System.out.println("<".repeat(10)+"!".repeat(50));
-        }
-        System.out.println(this.isDone());
+//        if (isRoot && Storage.getIsIndexing()) {
+//            System.out.println(">".repeat(10)+"!".repeat(50));
+//            dbc.setStatusToIndexed(siteId);
+//            System.out.println("<".repeat(10)+"!".repeat(50));
+//        }
+
         return res;
     }
 
