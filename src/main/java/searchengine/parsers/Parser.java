@@ -1,4 +1,4 @@
-package searchengine.methodes;
+package searchengine.parsers;
 
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
@@ -58,7 +58,7 @@ public class Parser {
         return result;
     }
 
-    public static String CreateSnippet(String text, HashMap<String, Integer> lemmas) {
+    public static String createSnippet(String text, HashMap<String, Integer> lemmas) {
         try {
             LuceneMorphology luceneMorph = new RussianLuceneMorphology();
             String result = "";

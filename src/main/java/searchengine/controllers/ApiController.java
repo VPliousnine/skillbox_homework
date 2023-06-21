@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import searchengine.dto.MessageResponse;
 import searchengine.dto.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.services.IndexService;
 import searchengine.services.StatisticsService;
 import searchengine.services.Storage;
 
@@ -15,9 +16,11 @@ import searchengine.services.Storage;
 public class ApiController {
 
     private final StatisticsService statisticsService;
+    private final IndexService indexService;
 
-    public ApiController(StatisticsService statisticsService) {
+    public ApiController(StatisticsService statisticsService, IndexService indexService) {
         this.statisticsService = statisticsService;
+        this.indexService = indexService;
     }
 
     @GetMapping("/statistics")
@@ -39,18 +42,12 @@ public class ApiController {
 
     @GetMapping("/stopIndexing")
     public ResponseEntity<JSONObject> stopIndexing() {
-        JSONObject response = new JSONObject();
-        if (!Storage.getIsIndexing()) {
-            return new ResponseEntity<>(responseError("Индексация не запущена"), HttpStatus.I_AM_A_TEAPOT);
-        }
-        response.put("result", true);
-        Storage.setIsIndexing(false);
-        return ResponseEntity.ok(response);
+        return indexService.stopIndexing();
     }
 
     @PostMapping("/indexPage")
     public ResponseEntity indexPage(String url) {
-        MessageResponse response =  statisticsService.indexPage(url);
+        MessageResponse response =  indexService.indexPage(url);
         if (response.isResult()) {
             return ResponseEntity.ok(response);
         }

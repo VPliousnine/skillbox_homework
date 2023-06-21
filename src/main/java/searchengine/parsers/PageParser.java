@@ -1,11 +1,10 @@
-package searchengine.methodes;
+package searchengine.parsers;
 
 import org.jsoup.Jsoup;
 import searchengine.model.*;
 import searchengine.services.DBC;
 import searchengine.services.Storage;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;

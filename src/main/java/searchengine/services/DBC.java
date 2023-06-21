@@ -2,6 +2,10 @@ package searchengine.services;
 
 import org.springframework.stereotype.Service;
 import searchengine.model.*;
+import searchengine.repo.IndexRepository;
+import searchengine.repo.LemmaRepository;
+import searchengine.repo.PageRepository;
+import searchengine.repo.SiteRepository;
 
 import java.util.HashMap;
 import java.util.Set;

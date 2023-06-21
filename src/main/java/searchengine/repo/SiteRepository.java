@@ -1,10 +1,11 @@
-package searchengine.model;
+package searchengine.repo;
 
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import searchengine.model.SiteItem;
 
 @Repository
 public interface SiteRepository extends JpaRepository<SiteItem, Integer> {

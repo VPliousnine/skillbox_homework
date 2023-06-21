@@ -1,6 +1,6 @@
 package searchengine.services;
 
-import searchengine.methodes.PageParser;
+import searchengine.parsers.PageParser;
 import searchengine.model.SiteItem;
 import searchengine.model.StatusType;
 
