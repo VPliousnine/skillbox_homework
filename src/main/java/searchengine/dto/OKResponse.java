@@ -3,15 +3,12 @@ package searchengine.dto;
 import org.json.simple.JSONObject;
 import org.springframework.http.HttpStatus;
 
-public class MessageResponse implements Response{
+public class OKResponse implements Response{
 
     JSONObject object = new JSONObject();
-    HttpStatus status;
 
-    public MessageResponse(String message, HttpStatus status) {
-        object.put("result", false);
-        object.put("error", message);
-        this.status = status;
+    public OKResponse() {
+        object.put("result", true);
     }
 
     @Override
@@ -21,6 +18,6 @@ public class MessageResponse implements Response{
 
     @Override
     public HttpStatus getHttpStatus() {
-        return status;
+        return HttpStatus.OK;
     }
 }

@@ -39,19 +39,6 @@ public class StatisticsServiceImpl implements StatisticsService {
     private IndexRepository indexRepository;
 
     @Override
-    public void startIndexing() {
-        List<Site> sitesList = sites.getSites();
-        Thread[] threads = new Thread[sitesList.size()];
-        int threadId = 0;
-        for (Site site : sitesList) {
-            threads[threadId++] = new StartIndexing(site.getUrl(), site.getName(), new DBC(siteRepository, pageRepository, lemmaRepository, indexRepository), userAgent.getAgent());
-        }
-        for (Thread thread : threads) {
-            thread.start();
-        }
-    }
-
-    @Override
     public StatisticsResponse getStatistics() {
 
         TotalStatistics total = new TotalStatistics();
@@ -93,9 +80,6 @@ public class StatisticsServiceImpl implements StatisticsService {
         Comparator<K> valueComparator = (k1, k2) -> {
             int comp = map.get(k1).compareTo(
                     map.get(k2));
-//            if (comp == 0)
-//                return 1 * order ;
-//            else
                 return comp * order;
         };
 

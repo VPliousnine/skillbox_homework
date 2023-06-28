@@ -1,14 +1,14 @@
 package searchengine.services;
 
 import lombok.RequiredArgsConstructor;
-import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import searchengine.config.Site;
 import searchengine.config.SitesList;
 import searchengine.config.UserAgent;
+import searchengine.dto.OKResponse;
+import searchengine.dto.Response;
 import searchengine.dto.MessageResponse;
 import searchengine.model.Page;
 import searchengine.model.PageWithMessage;
@@ -24,7 +24,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class IndexServiceImpl implements IndexService{
+public class IndexingServiceImpl implements IndexingService {
 
     private final SitesList sites;
     private final UserAgent userAgent;
@@ -38,28 +38,47 @@ public class IndexServiceImpl implements IndexService{
     private IndexRepository indexRepository;
 
     @Override
-    public ResponseEntity<JSONObject> stopIndexing() {
-        JSONObject response = new JSONObject();
-        if (!Storage.getIsIndexing()) {
-            return new ResponseEntity<>(responseError("Индексация не запущена"), HttpStatus.I_AM_A_TEAPOT);
+    public Response startIndexing() {
+        if (Storage.getIsIndexing()) {
+            return new MessageResponse("Индексация уже запущена", HttpStatus.I_AM_A_TEAPOT);
         }
-        response.put("result", true);
-        Storage.setIsIndexing(false);
-        return ResponseEntity.ok(response);
+
+        Storage.resetCounter();
+        Storage.setIsIndexing(true);
+
+        List<Site> sitesList = sites.getSites();
+        Thread[] threads = new Thread[sitesList.size()];
+        int threadId = 0;
+        for (Site site : sitesList) {
+            threads[threadId++] = new StartIndexing(site.getUrl(), site.getName(), new DBC(siteRepository, pageRepository, lemmaRepository, indexRepository), userAgent.getAgent());
+        }
+        for (Thread thread : threads) {
+            thread.start();
+        }
+
+        return new OKResponse();
     }
 
     @Override
-    public MessageResponse indexPage(String url) {
-        MessageResponse response = new MessageResponse();
+    public Response stopIndexing() {
+
+        if (!Storage.getIsIndexing()) {
+            return new MessageResponse("Индексация не запущена", HttpStatus.I_AM_A_TEAPOT);
+        }
+        Storage.setIsIndexing(false);
+
+        return new OKResponse();
+    }
+
+    @Override
+    public Response indexPage(String url) {
         if (url.isEmpty()) {
-            response.setMessage("Введена пустая строка");
-            return response;
+            return new MessageResponse("Введена пустая строка", HttpStatus.BAD_REQUEST);
         }
 
         int lastSlash = url.lastIndexOf("/");
         if (lastSlash == -1) {
-            response.setMessage("Строка не распознана в качестве адреса");
-            return response;
+            return new MessageResponse("Строка не распознана в качестве адреса", HttpStatus.BAD_REQUEST);
         }
 
         List<Site> sitesList = sites.getSites();
@@ -69,17 +88,15 @@ public class IndexServiceImpl implements IndexService{
             if (found) { break; }
         }
         if (!found) {
-            response.setMessage("Данная страница находится за пределами сайтов,\n" +
-                    "указанных в конфигурационном файле");
-            return response;
+            return new MessageResponse("Данная страница находится за пределами сайтов,\n" +
+                    "указанных в конфигурационном файле", HttpStatus.BAD_REQUEST);
         }
 
         DBC dbc = new DBC(siteRepository, pageRepository, lemmaRepository, indexRepository);
 
         SiteItem siteItem = dbc.getSite(url);
         if (siteItem == null) {
-            response.setMessage("Сайт отсутствует в базе данных");
-            return response;
+            return new MessageResponse("Сайт не индексирован", HttpStatus.BAD_REQUEST);
         }
         int siteId = siteItem.getId();
         PageWithMessage parsedPage = Parser.getHTMLPage(url, userAgent.getAgent());
@@ -88,8 +105,7 @@ public class IndexServiceImpl implements IndexService{
         }
         Page page2save = parsedPage.getPage();
         if (page2save.getContent().isEmpty()) {
-            response.setMessage("Страницу не удалось прочитать");
-            return response;
+            return new MessageResponse("Страницу не удалось прочитать", HttpStatus.BAD_REQUEST);
         }
         String url_ = url + (url.equals(siteItem.getUrl()) ? "/" : "");
         Page pageInDB = dbc.getPage(url_, siteItem.getUrl(), siteId);
@@ -105,14 +121,7 @@ public class IndexServiceImpl implements IndexService{
         HashMap<String, Integer> lemmas = Parser.parsePage4Lemmas(page2save.getContent());
         dbc.saveLemmas(siteId, dbc.getPage(url_, siteItem.getUrl(), siteId).getId(), lemmas);
 
-        response.setResult(true);
-        return response;
+        return new OKResponse();
     }
 
-    private static JSONObject responseError(String message) {
-        JSONObject response = new JSONObject();
-        response.put("result", false);
-        response.put("error", message);
-        return response;
-    }
 }

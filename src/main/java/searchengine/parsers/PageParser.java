@@ -22,8 +22,9 @@ public class PageParser extends RecursiveTask<Integer> {
     private int statusCode;
     private String pageHTML;
     final private boolean isRoot;
+    private String fromPage;
 
-    public PageParser(String pageAddress, String root, int siteId, DBC dbc, String userAgent, boolean isRoot) {
+    public PageParser(String pageAddress, String root, int siteId, DBC dbc, String userAgent, boolean isRoot, String fromPage) {
         this.pageAddress = pageAddress;
         this.root = root;
         this.siteId = siteId;
@@ -31,9 +32,13 @@ public class PageParser extends RecursiveTask<Integer> {
         this.dbc = dbc;
         this.userAgent = userAgent;
         this.isRoot = isRoot;
+        this.fromPage = fromPage;
     }
 
     private boolean isBadLink (String path) {
+        if (path == null) {
+            return true;
+        }
         if (path.indexOf("?") > 0 || path.indexOf("#") > 0 || path.indexOf("&") > 0) {
             return true;
         }
@@ -43,7 +48,6 @@ public class PageParser extends RecursiveTask<Integer> {
         if (path.endsWith(".pdf") || path.endsWith(".jpg") || path.endsWith(".png") || path.endsWith(".doc") || path.endsWith(".docx")) {
             return true;
         }
-
         if (!isRoot && path.equals(root)) {
             return true;
         }
@@ -56,12 +60,11 @@ public class PageParser extends RecursiveTask<Integer> {
     }
 
     private void stopIndexing() {
-//        Storage.decrementThreads();
-//        System.out.println(pageAddress + "!".repeat(50));
+        Storage.decrementThreads();
         dbc.setStatusToIndexFailed("Индексирование остановлено пользователем", siteId);
     }
 
-    public void parsePage() {
+    void savePage() {
         if (dbc.getPage(pageAddress, root, siteId) == null) {
             Page page = new Page();
             page.setSiteId(siteId);
@@ -70,25 +73,42 @@ public class PageParser extends RecursiveTask<Integer> {
             page.setPath(path2Save.isEmpty() ? "/" : path2Save);
             page.setContent(pageHTML == null ? "" : pageHTML);
             dbc.savePage(page);
-            HashMap<String, Integer> lemmas = Parser.parsePage4Lemmas(pageHTML);
-            dbc.saveLemmas(siteId, dbc.getPage(pageAddress, root, siteId).getId(), lemmas);
         }
+    }
+
+    void parsePage() {
+        HashMap<String, Integer> lemmas = Parser.parsePage4Lemmas(pageHTML);
+        if (lemmas.size() == 0) {
+            System.out.println("Ошибка при распознавании страницы " + pageAddress);
+            dbc.setLastError("Ошибка при распознавании страницы " + pageAddress, siteId);
+            Storage.badAddresses.add(pageAddress);
+            return;
+        }
+        Page page = dbc.getPage(pageAddress, root, siteId);
+        if (page == null) { return; }
+        dbc.saveLemmas(siteId, page.getId(), lemmas);
     }
 
     @Override
     protected Integer compute() {
-        if (isBadLink(pageAddress)) { return 1; }
+        int res = 0;
+
+        if (pageAddress == null) {
+            return 1;
+        }
+        if (isBadLink(pageAddress)) {
+            return 1;
+        }
         if (!Storage.getIsIndexing()) {
             stopIndexing();
             return 1;
         }
-//        Storage.incrementThreads();
-//        System.out.println(">".repeat(15) + " " + Thread.currentThread().getName() + " - "+ pageAddress + ", threads: " + Storage.getThreadCount());
+        Storage.incrementThreads();
 
         try {
             Thread.sleep(500L + (long) (Math.random() * 1000));
         } catch (InterruptedException e) {
-//            Storage.decrementThreads();
+            Storage.decrementThreads();
             throw new RuntimeException(e);
         }
 
@@ -99,7 +119,10 @@ public class PageParser extends RecursiveTask<Integer> {
 
         pageHTML = parsedPage.getPage().getContent();
         statusCode = parsedPage.getPage().getCode();
-        parsePage();
+        savePage();
+        if (statusCode == 200) {
+            parsePage();
+        }
         if (isRoot && (statusCode != 200 || pageHTML.isEmpty())) {
             dbc.setStatusToIndexFailed("Невозможно получить главную страницу сайта", siteId);
         } else {
@@ -107,7 +130,7 @@ public class PageParser extends RecursiveTask<Integer> {
         }
 
         if (pageHTML.isEmpty()) {
-//            Storage.decrementThreads();
+            Storage.decrementThreads();
             return 1;
         }
 
@@ -117,7 +140,6 @@ public class PageParser extends RecursiveTask<Integer> {
         }
 
         List<PageParser> taskList = new ArrayList<>();
-        List<String> linxList = new ArrayList<>();
 
         HashSet<String> links = new HashSet<>();
         Jsoup.parse(pageHTML).select("a").forEach(el ->
@@ -126,31 +148,25 @@ public class PageParser extends RecursiveTask<Integer> {
                     if (!link.equals("/") && link.startsWith("/")) {
                         link = root + link;
                     }
-                    if (!links.contains(link) && Storage.getIsIndexing() && link.startsWith(root) && !isBadLink(link)) {
+                    if (!Storage.checkedAddresses.contains(link) && !links.contains(link) && Storage.getIsIndexing() && link.startsWith(root) && !isBadLink(link) && !link.equals(pageAddress)) {
                         links.add(link);
-                        PageParser task = new PageParser(link, root, siteId, dbc, userAgent, false);
+                        Storage.checkedAddresses.add(link);
+                        PageParser task = new PageParser(link, root, siteId, dbc, userAgent, false, pageAddress);
                         task.fork();
                         taskList.add(task);
-                        linxList.add(link);
                     }
                 }
         );
-//        System.out.println(">".repeat(15) + " " + Thread.currentThread().getName() + " - "+ pageAddress + " new addresses were added " + taskList.size());
-        int res = 0;
-        for (int i = 0; i < taskList.size(); i++ ) {
-            PageParser task = taskList.get(i);
+
+        for (PageParser task : taskList) {
             res = res + task.join();
-//            System.out.println("<<<" + LocalDateTime.now() + " - " + pageAddress + " (" + linxList.get(i) + ") " + task + "<<<" + res);
         }
-//        Storage.decrementThreads();
-//        System.out.println("threads " + Storage.getThreadCount() + " " + pageAddress + " "
-//                            + Thread.currentThread() + ", active is " + Thread.activeCount()
-//                );
-//        if (isRoot && Storage.getIsIndexing()) {
-//            System.out.println(">".repeat(10)+"!".repeat(50));
-//            dbc.setStatusToIndexed(siteId);
-//            System.out.println("<".repeat(10)+"!".repeat(50));
-//        }
+        Storage.decrementThreads();
+
+        if (isRoot && Storage.getIsIndexing()) {
+            dbc.setStatusToIndexed(siteId);
+        }
+//System.out.println("page = " + pageAddress + " from = " + fromPage + ": (finished) " + Storage.getThreadCount() + " (" + Storage.checkedAddresses.size() + "/" + Storage.badAddresses.size() + ")");
 
         return res;
     }

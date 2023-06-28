@@ -4,23 +4,22 @@ import org.json.simple.JSONObject;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.dto.MessageResponse;
+import searchengine.dto.Response;
 import searchengine.dto.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
-import searchengine.services.IndexService;
+import searchengine.services.IndexingService;
 import searchengine.services.StatisticsService;
-import searchengine.services.Storage;
 
 @RestController
 @RequestMapping("/api")
 public class ApiController {
 
     private final StatisticsService statisticsService;
-    private final IndexService indexService;
+    private final IndexingService indexingService;
 
-    public ApiController(StatisticsService statisticsService, IndexService indexService) {
+    public ApiController(StatisticsService statisticsService, IndexingService indexingService) {
         this.statisticsService = statisticsService;
-        this.indexService = indexService;
+        this.indexingService = indexingService;
     }
 
     @GetMapping("/statistics")
@@ -30,28 +29,21 @@ public class ApiController {
 
     @GetMapping("/startIndexing")
     public ResponseEntity<JSONObject> startIndexing() {
-        JSONObject response = new JSONObject();
-        if (Storage.getIsIndexing()) {
-            return new ResponseEntity<>(responseError("Индексация уже запущена"), HttpStatus.I_AM_A_TEAPOT);
-        }
-        Storage.setIsIndexing(true);
-        statisticsService.startIndexing();
-        response.put("result", true);
-        return ResponseEntity.ok(response);
+        Response startIndexingResponse = indexingService.startIndexing();
+        return new ResponseEntity<>(startIndexingResponse.get(), startIndexingResponse.getHttpStatus());
+
     }
 
     @GetMapping("/stopIndexing")
     public ResponseEntity<JSONObject> stopIndexing() {
-        return indexService.stopIndexing();
+        Response stopIndexingResponse = indexingService.stopIndexing();
+        return new ResponseEntity<>(stopIndexingResponse.get(), stopIndexingResponse.getHttpStatus());
     }
 
     @PostMapping("/indexPage")
-    public ResponseEntity indexPage(String url) {
-        MessageResponse response =  indexService.indexPage(url);
-        if (response.isResult()) {
-            return ResponseEntity.ok(response);
-        }
-        return new ResponseEntity<>(responseError(response.getMessage()), HttpStatus.I_AM_A_TEAPOT);
+    public ResponseEntity<JSONObject> indexPage(String url) {
+        Response indexPageResponse = indexingService.indexPage(url);
+        return new ResponseEntity<>(indexPageResponse.get(), indexPageResponse.getHttpStatus());
     }
 
     @GetMapping("/search")

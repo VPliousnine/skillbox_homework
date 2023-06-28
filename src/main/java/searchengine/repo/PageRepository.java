@@ -22,4 +22,10 @@ public interface PageRepository extends JpaRepository<Page, Integer> {
     @Transactional
     @Query(value = "DELETE FROM Page WHERE site_id=?", nativeQuery = true)
     void deleteBySite(int site_id);
+
+    @Modifying
+    @Transactional
+    @Query(value = "INSERT IGNORE INTO page (code, site_id, path, content) VALUES (?, ?, ?, ?)", nativeQuery = true)
+    void savePage(int code, int site_id, String path, String content);
+
 }

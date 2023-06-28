@@ -36,8 +36,13 @@ public class DBC {
     }
 
     public Page getPage(String path, String root, int siteId) {
-        String path2Find = path.equals(root) ? "/" : path.substring(root.length());
-        return pageRepository.findBySiteIdAndPath(siteId, path2Find);
+        try {
+            String path2Find = path.equals(root) ? "/" : path.substring(root.length());
+            return pageRepository.findBySiteIdAndPath(siteId, path2Find);
+        } catch (NullPointerException npe) {
+            System.out.println(npe.fillInStackTrace() + " Q " + path);
+        }
+        return null;
     }
 
     public void updateStatusTimeById(int siteId) {
@@ -65,7 +70,7 @@ public class DBC {
     }
 
     public void savePage(Page page) {
-        pageRepository.save(page);
+        pageRepository.savePage(page.getCode(), page.getSiteId(), page.getPath(), page.getContent());
     }
 
     public void saveLemmas(int siteId, int pageId, HashMap<String, Integer> lemmas) {

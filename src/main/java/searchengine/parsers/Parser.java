@@ -9,6 +9,7 @@ import searchengine.model.PageWithMessage;
 import searchengine.services.Storage;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -35,8 +36,8 @@ public class Parser {
                 );
             }
             return result;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            return new HashMap<>();
         }
     }
 
@@ -45,8 +46,25 @@ public class Parser {
         Page page = new Page();
         try {
             Connection.Response response = Jsoup.connect(path).userAgent(userAgent).timeout(10000).execute();
-            page.setCode(response.statusCode());
-            page.setContent(response.parse().toString());
+
+            int statusCode = response.statusCode();
+
+            if (statusCode == 200 && !path.equals(response.url().toString()) ) {
+
+                statusCode = 302;
+                Storage.badAddresses.add(path);
+
+            }
+            page.setCode(statusCode);
+            page.setContent(statusCode == 200 ? response.parse().toString() : "");
+
+            result.setPage(page);
+
+        } catch (SocketTimeoutException e) {
+            System.out.println(e.getMessage() + " " + path);
+            Storage.badAddresses.add(path);
+            page.setCode(408);
+            page.setContent("");
             result.setPage(page);
         } catch (Exception ex) {
             System.out.println(ex.getMessage() + " " + path);
@@ -73,16 +91,19 @@ public class Parser {
 
                 for (String description : luceneMorph.getMorphInfo(word.toLowerCase())) {
                     String[] items = description.replace("|", " ").split("\\s");
-                    if (lemmas.containsKey(items[0])) {
-                        if (result.isEmpty()) {
-                            result = text.substring(text.indexOf(word));
-                            if (result.length() > SNIPPET_LENGTH) {
-                                result = result.substring(0, SNIPPET_LENGTH);
-                            }
-                        }
-                        result = result.replaceAll("(?<!\\\\S)" + word + "(?!\\\\S)", "<b>" + word + "</b>");
-                        break;
+                    if (!lemmas.containsKey(items[0])) {
+                        continue;
                     }
+
+                    if (result.isEmpty()) {
+                        result = text.substring(text.indexOf(word));
+                        if (result.length() > SNIPPET_LENGTH) {
+                            result = result.substring(0, SNIPPET_LENGTH);
+                        }
+                    }
+                    result = result.replaceAll("(?<!\\\\S)" + word + "(?!\\\\S)", "<b>" + word + "</b>");
+                    break;
+
                 }
             }
             int openTagIndex = result.indexOf("<b><b>");

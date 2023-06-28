@@ -2,13 +2,15 @@ package searchengine.model;
 
 import jakarta.persistence.*;
 import jakarta.persistence.Index;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
 @Getter
 @Setter
-@Table(name = "Page", indexes = @Index(columnList = "path"))
+@Table(name = "Page", uniqueConstraints = {
+        @UniqueConstraint(name = "site_path", columnNames = {"site_id", "path"})})
 public class Page {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
