@@ -12,10 +12,10 @@ import searchengine.dto.SearchResponse;
 import searchengine.dto.statistics.*;
 import searchengine.parsers.Parser;
 import searchengine.model.*;
-import searchengine.repo.IndexRepository;
-import searchengine.repo.LemmaRepository;
-import searchengine.repo.PageRepository;
-import searchengine.repo.SiteRepository;
+import searchengine.repository.IndexRepository;
+import searchengine.repository.LemmaRepository;
+import searchengine.repository.PageRepository;
+import searchengine.repository.SiteRepository;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
